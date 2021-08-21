@@ -15,10 +15,6 @@ class ClientSocket {
     
     public static function __connect()
     {
-        if(PHP_SAPI !== 'cli'){
-            return 1;
-        }
-
         $opts = getopt("h:p:", ["host:", "port:"]);
 
         (count($opts) === 2) || die();
@@ -88,7 +84,6 @@ class ClientSocket {
             }
         }
         socket_close($socket);
-        return 0;
     }
 
     /*********************************************************************************/
@@ -141,6 +136,5 @@ class ClientSocket {
 
 
 $result = ClientSocket::__connect();
-exit($result);
 
 ?>

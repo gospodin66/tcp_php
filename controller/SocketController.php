@@ -162,7 +162,7 @@ class SocketController {
         else if($line === 'sendto'){
             self::display_clients($connected);
 
-            $targetcmd = readline("ip::cmd [ or x to exit ]: ");
+            $targetcmd = readline("ip:port::cmd [ or x to exit ]: ");
 
             $target = explode('::', $targetcmd);
 
@@ -174,7 +174,7 @@ class SocketController {
             {
                 foreach($connected as $key => $_client)
                 {
-                    if($_client->ip === $target[0])
+                    if("{$_client->ip}:{$_client->port}" === $target[0])
                     {
                         $temp_write = $_client->socket;
 
@@ -192,7 +192,7 @@ class SocketController {
                                 continue;
                             }
     
-                            echo "sent \33[35m{$b}\33[0m bytes to ONLY {$connected[$key]->id}\n";
+                            echo "sent \33[35m{$b}\33[0m bytes to ONLY {$connected[$key]->id}::{$connected[$key]->host}:{$connected[$key]->ip}:{$connected[$key]->port}\n";
                         }
                     }
                 }
@@ -253,7 +253,7 @@ class SocketController {
                             continue;
 						}
 
-                        echo "sent \33[35m{$b}\33[0m bytes to {$connected[$key]->id}\n";
+                        echo "sent \33[35m{$b}\33[0m bytes to {$connected[$key]->id}::{$connected[$key]->host}:{$connected[$key]->ip}:{$connected[$key]->port}\n";
                     }
                 }
             }
