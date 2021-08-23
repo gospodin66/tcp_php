@@ -322,7 +322,7 @@ class SocketController {
             while(1)
             {
                 $recv_string = fread($r_socket, BUFFER_LEN);
-                $bytes = mb_strlen($recv_string);
+                $bytes = strlen($recv_string);
                 
                 $all_bytes += $bytes;
 
